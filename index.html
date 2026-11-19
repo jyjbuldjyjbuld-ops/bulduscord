@@ -10,7 +10,7 @@
       --bg-dark: #0b0c10; --bg-panel: #15171e; --bg-chat: #1c1e26; --bg-input: #232530;
       --text-main: #e3e5ed; --text-muted: #8a8d9b; --accent: #5865f2; --accent-hover: #4752c4;
       --accent-glow: rgba(88, 101, 242, 0.4); --msg-own-bg: #3b3f54; --green-online: #23a55a;
-      --red-offline: #da373c; --border: #2a2c3a;
+      --red-offline: #da373c; --yellow-warn: #f1c40f; --border: #2a2c3a;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
     body { background: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; overflow: hidden; }
@@ -63,6 +63,8 @@
     .chat-header { padding: 15px 25px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(28, 30, 38, 0.8); backdrop-filter: blur(10px); }
     .chat-header h2 { font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
     .header-actions { display: flex; gap: 10px; align-items: center; }
+    .search-input { background: var(--bg-input); border: 1px solid var(--border); color: white; padding: 6px 12px; border-radius: 6px; font-size: 13px; outline: none; width: 150px; transition: 0.3s; }
+    .search-input:focus { width: 200px; border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
 
     #messages { flex: 1; padding: 20px 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; position: relative; }
 
@@ -241,6 +243,7 @@
     <header class="chat-header">
       <h2><span class="channel-icon" id="currentChatIcon">#</span> <span id="currentChatName">general</span></h2>
       <div class="header-actions">
+        <input type="text" id="searchInput" class="search-input" placeholder="Поиск...">
         <button id="startCallBtn" class="call-btn">📞 Звонок</button>
       </div>
     </header>
@@ -332,7 +335,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded, set, get, remove, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, push, onChildAdded, set, get, remove, onValue, update, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     import { joinRoom } from "https://cdn.jsdelivr.net/npm/trystero@0.21.0/firebase/+esm";
 
     const firebaseConfig = {
@@ -350,10 +353,11 @@
     const notifSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
     const ringSound = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
 
+    // ====== ПРОФИЛЬ ======
     let userName = localStorage.getItem('buldusName') || "User_" + Math.floor(Math.random() * 1000);
     let userAvatar = localStorage.getItem('buldusAvatar') || null;
     let currentChatId = 'general';
-    let currentCallTarget = null;
+    let currentCallTarget = null; // Кому звоним (для ЛС)
     let originalTitle = document.title;
     let titleInterval = null;
 
@@ -375,6 +379,7 @@
     }
     updateUI();
 
+    // Онлайн-статус
     const myStatusRef = ref(db, 'status/' + userName);
     set(myStatusRef, { online: true, last_seen: Date.now() });
     onDisconnect(myStatusRef).set({ online: false, last_seen: Date.now() });
@@ -407,7 +412,7 @@
       }
     };
 
-    // Уведомления
+    // ====== УВЕДОМЛЕНИЯ ======
     function showToast(user, text, avatar, isCall = false) {
       const container = document.getElementById('toast-container');
       const toast = document.createElement('div');
@@ -440,7 +445,7 @@
       document.title = originalTitle;
     });
 
-    // Чужой профиль
+    // ====== ЧУЖОЙ ПРОФИЛЬ ======
     const userModal = document.getElementById('userModal');
     let selectedUserId = null;
 
@@ -476,7 +481,7 @@
       startCall(selectedUserId);
     };
 
-    // Каналы и друзья
+    // ====== КАНАЛЫ И ДРУЗЬЯ ======
     let friends = JSON.parse(localStorage.getItem('buldusFriends')) || [];
     let customChannels = JSON.parse(localStorage.getItem('buldusChannels')) || [];
 
@@ -527,7 +532,7 @@
       }
     };
 
-    // Чат
+    // ====== ЧАТ И ЛОГИКА ======
     const messagesDiv = document.getElementById('messages');
     const msgInput = document.getElementById('msgInput');
     const currentChatName = document.getElementById('currentChatName');
@@ -673,7 +678,16 @@
       } else set(myTypingRef, false);
     });
 
-    // Отправка
+    // Поиск
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      document.querySelectorAll('.msg-group').forEach(msg => {
+        const text = msg.querySelector('.msg-text')?.textContent.toLowerCase() || '';
+        msg.style.display = text.includes(query) ? 'flex' : 'none';
+      });
+    });
+
+    // ====== ОТПРАВКА ======
     const attachBtn = document.getElementById('attachBtn');
     const fileInput = document.getElementById('fileInput');
     attachBtn.onclick = () => fileInput.click();
@@ -703,7 +717,7 @@
     msgInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
     function escapeHtml(unsafe) { return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
-    // Голосовые
+    // ====== ГОЛОСОВЫЕ ======
     let mediaRecorder, audioChunks = [];
     const voiceBtn = document.getElementById('voiceBtn');
     voiceBtn.onclick = async () => {
@@ -728,7 +742,7 @@
       }
     };
 
-    // Звонок
+    // ====== ЗВОНОК (WebRTC) ======
     const startCallBtn = document.getElementById('startCallBtn');
     const callOverlay = document.getElementById('callOverlay');
     const callStatus = document.getElementById('callStatus');
@@ -775,7 +789,7 @@
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localVideo.srcObject = localStream; localVideo.classList.add('active');
         let roomId = targetUser ? `buldus-dm-${getChatRoomId(userName, targetUser)}` : `buldus-channel-${currentChatId}`;
-        // ИСПОЛЬЗУЕМ УЖЕ СОЗДАННЫЙ FIREBASE APP
+        // ИСПРАВЛЕНО: используем firebaseApp: app
         room = joinRoom({ firebaseApp: app }, roomId);
         callStatus.textContent = isReceiving ? "Подключение..." : "Ожидание ответа...";
         room.addStream(localStream);
