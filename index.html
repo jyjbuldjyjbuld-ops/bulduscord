@@ -336,7 +336,6 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, push, onChildAdded, set, get, remove, onValue, update, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-    import { joinRoom } from "https://cdn.jsdelivr.net/npm/trystero@0.21.0/firebase/+esm";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDl_n46O3YC40IxWeU2iP3ucWi3D1xW0-Q",
@@ -353,64 +352,37 @@
     const notifSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
     const ringSound = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
 
-    // ====== ПРОФИЛЬ ======
+    // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
     let userName = localStorage.getItem('buldusName') || "User_" + Math.floor(Math.random() * 1000);
     let userAvatar = localStorage.getItem('buldusAvatar') || null;
     let currentChatId = 'general';
-    let currentCallTarget = null; // Кому звоним (для ЛС)
+    let currentCallTarget = null;
     let originalTitle = document.title;
     let titleInterval = null;
+    let friends = JSON.parse(localStorage.getItem('buldusFriends')) || [];
+    let customChannels = JSON.parse(localStorage.getItem('buldusChannels')) || [];
+    let replyTo = null;
+    let chatUnsubscribe = null;
+    let typingTimeout = null;
 
-    const headerName = document.getElementById('headerName');
-    const headerAvatar = document.getElementById('headerAvatar');
-    const profileModal = document.getElementById('profileModal');
-    const editNameInput = document.getElementById('editNameInput');
-    const avatarInput = document.getElementById('avatarInput');
-    const avatarPreview = document.getElementById('avatarPreview');
-    let tempAvatar = userAvatar;
+    // ====== ИНИЦИАЛИЗАЦИЯ ПРОФИЛЯ ======
+    function initProfile() {
+      const headerName = document.getElementById('headerName');
+      const headerAvatar = document.getElementById('headerAvatar');
+      const avatarPreview = document.getElementById('avatarPreview');
 
-    function updateUI() {
       headerName.textContent = userName;
       headerAvatar.innerHTML = `<div class="online-dot"></div>`;
       if(userAvatar) headerAvatar.innerHTML = `<img src="${userAvatar}"><div class="online-dot"></div>`;
       else headerAvatar.innerHTML = `${userName.charAt(0).toUpperCase()}<div class="online-dot"></div>`;
-      if(tempAvatar) avatarPreview.innerHTML = `<img src="${tempAvatar}">`;
+      
+      if(userAvatar) avatarPreview.innerHTML = `<img src="${userAvatar}">`;
       else avatarPreview.textContent = userName.charAt(0).toUpperCase();
+
+      const myStatusRef = ref(db, 'status/' + userName);
+      set(myStatusRef, { online: true, last_seen: Date.now() });
+      onDisconnect(myStatusRef).set({ online: false, last_seen: Date.now() });
     }
-    updateUI();
-
-    // Онлайн-статус
-    const myStatusRef = ref(db, 'status/' + userName);
-    set(myStatusRef, { online: true, last_seen: Date.now() });
-    onDisconnect(myStatusRef).set({ online: false, last_seen: Date.now() });
-
-    avatarInput.onchange = (e) => {
-      const file = e.target.files[0];
-      if(file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => { tempAvatar = ev.target.result; avatarPreview.innerHTML = `<img src="${tempAvatar}">`; };
-        reader.readAsDataURL(file);
-      }
-    };
-
-    document.getElementById('openProfileBtn').onclick = () => {
-      editNameInput.value = userName; tempAvatar = userAvatar;
-      if(tempAvatar) avatarPreview.innerHTML = `<img src="${tempAvatar}">`;
-      else avatarPreview.textContent = userName.charAt(0).toUpperCase();
-      profileModal.classList.add('active');
-    };
-    document.getElementById('closeProfileBtn').onclick = () => profileModal.classList.remove('active');
-    document.getElementById('closeProfileBtn2').onclick = () => profileModal.classList.remove('active');
-
-    document.getElementById('saveProfileBtn').onclick = () => {
-      const newName = editNameInput.value.trim();
-      if(newName) {
-        userName = newName; userAvatar = tempAvatar;
-        localStorage.setItem('buldusName', userName); localStorage.setItem('buldusAvatar', userAvatar);
-        set(ref(db, 'users/' + userName), { avatar: userAvatar });
-        updateUI(); profileModal.classList.remove('active');
-      }
-    };
 
     // ====== УВЕДОМЛЕНИЯ ======
     function showToast(user, text, avatar, isCall = false) {
@@ -445,46 +417,7 @@
       document.title = originalTitle;
     });
 
-    // ====== ЧУЖОЙ ПРОФИЛЬ ======
-    const userModal = document.getElementById('userModal');
-    let selectedUserId = null;
-
-    window.openUserProfile = async function(name) {
-      if (name === userName) return;
-      selectedUserId = name;
-      document.getElementById('userModalName').textContent = name;
-      const userAvatarDiv = document.getElementById('userModalAvatar');
-      userAvatarDiv.textContent = name.charAt(0).toUpperCase();
-      try {
-        const snapshot = await get(ref(db, 'users/' + name));
-        if (snapshot.exists() && snapshot.val().avatar) userAvatarDiv.innerHTML = `<img src="${snapshot.val().avatar}">`;
-      } catch(e) {}
-      userModal.classList.add('active');
-    };
-    document.getElementById('closeUserModalBtn').onclick = () => userModal.classList.remove('active');
-    document.getElementById('userModalMsgBtn').onclick = () => {
-      userModal.classList.remove('active');
-      if(!friends.includes(selectedUserId)) {
-        friends.push(selectedUserId); localStorage.setItem('buldusFriends', JSON.stringify(friends)); renderFriends();
-      }
-      switchChat(selectedUserId);
-    };
-    document.getElementById('userModalAddBtn').onclick = () => {
-      if(!friends.includes(selectedUserId)) {
-        friends.push(selectedUserId); localStorage.setItem('buldusFriends', JSON.stringify(friends)); renderFriends();
-        alert(selectedUserId + " добавлен в друзья!");
-      } else alert("Он уже у тебя в друзьях.");
-      userModal.classList.remove('active');
-    };
-    document.getElementById('userModalCallBtn').onclick = () => {
-      userModal.classList.remove('active');
-      startCall(selectedUserId);
-    };
-
-    // ====== КАНАЛЫ И ДРУЗЬЯ ======
-    let friends = JSON.parse(localStorage.getItem('buldusFriends')) || [];
-    let customChannels = JSON.parse(localStorage.getItem('buldusChannels')) || [];
-
+    // ====== ДРУЗЬЯ И КАНАЛЫ ======
     function renderChannels() {
       const list = document.getElementById('channelsList');
       list.innerHTML = `<div class="channel-item ${currentChatId === 'general' ? 'active' : ''}" id="channel-general" onclick="switchChat('general')"><span class="channel-icon">#</span> general</div>`;
@@ -496,19 +429,17 @@
         list.appendChild(el);
       });
     }
-    renderChannels();
-
-    document.getElementById('addChannelBtn').onclick = () => {
-      const chName = prompt("Название нового канала:");
-      if(chName && !customChannels.includes(chName) && chName !== 'general') {
-        customChannels.push(chName); localStorage.setItem('buldusChannels', JSON.stringify(customChannels));
-        renderChannels();
-      }
-    };
 
     function renderFriends() {
-      const list = document.getElementById('friendsList'); list.innerHTML = '';
+      const list = document.getElementById('friendsList'); 
+      list.innerHTML = '';
+      if(friends.length === 0) {
+        list.innerHTML = '<div style="font-size:12px;color:gray;padding:10px;">Список пуст</div>';
+        return;
+      }
+      
       friends.forEach(friend => {
+        if(!friend) return;
         const el = document.createElement('div');
         el.className = `friend-item ${currentChatId === friend ? 'active' : ''}`;
         el.innerHTML = `<div class="friend-avatar">${friend.charAt(0).toUpperCase()}</div> ${friend} <div class="online-badge offline" id="status-${friend}"></div>`;
@@ -518,33 +449,27 @@
         onValue(ref(db, 'status/' + friend), (snap) => {
           const status = snap.val();
           const badge = document.getElementById(`status-${friend}`);
-          if(status && status.online) badge.className = "online-badge online";
-          else badge.className = "online-badge offline";
+          if(badge && status && status.online) badge.className = "online-badge online";
+          else if (badge) badge.className = "online-badge offline";
         });
       });
     }
-    renderFriends();
 
-    document.getElementById('addFriendBtn').onclick = () => {
-      const friendName = prompt("Введите никнейм друга:");
-      if(friendName && !friends.includes(friendName)) {
-        friends.push(friendName); localStorage.setItem('buldusFriends', JSON.stringify(friends)); renderFriends();
-      }
-    };
-
-    // ====== ЧАТ И ЛОГИКА ======
-    const messagesDiv = document.getElementById('messages');
-    const msgInput = document.getElementById('msgInput');
-    const currentChatName = document.getElementById('currentChatName');
-    const currentChatIcon = document.getElementById('currentChatIcon');
-    let chatUnsubscribe = null;
-    let typingTimeout = null;
-    let replyTo = null;
-
-    function getChatRoomId(user1, user2) { return [user1, user2].sort().join('_'); }
+    // ====== ЧАТ ======
+    function getChatRoomId(user1, user2) { 
+      return [user1, user2].sort().join('_'); 
+    }
 
     window.switchChat = function(chatId) {
-      currentChatId = chatId; messagesDiv.innerHTML = '';
+      if (!chatId) return;
+      currentChatId = chatId; 
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.innerHTML = '';
+      
+      const currentChatName = document.getElementById('currentChatName');
+      const currentChatIcon = document.getElementById('currentChatIcon');
+      const msgInput = document.getElementById('msgInput');
+
       if(chatId === 'general' || customChannels.includes(chatId)) {
         currentChatName.textContent = chatId; currentChatIcon.textContent = '#';
         msgInput.placeholder = `Написать в #${chatId}...`;
@@ -639,9 +564,8 @@
         document.getElementById('typingIndicator').style.display = isSomeoneTyping ? 'block' : 'none';
       });
     }
-    switchChat('general');
 
-    // Реакции
+    // ====== ГЛОБАЛЬНЫЕ ФУНКЦИИ ======
     window.toggleReaction = function(path, msgId, emoji) {
       const reactRef = ref(db, `${path}/${msgId}/reactions/${userName}`);
       get(reactRef).then(snap => {
@@ -654,180 +578,333 @@
       document.querySelectorAll('.reaction-menu.active').forEach(el => { if(el.id !== `menu-${msgId}`) el.classList.remove('active'); });
       document.getElementById(`menu-${msgId}`).classList.toggle('active');
     };
-
     window.deleteMsg = function(fullPath) {
       if(confirm("Удалить это сообщение?")) { remove(ref(db, fullPath)); switchChat(currentChatId); }
     };
-
-    const replyBar = document.getElementById('replyBar');
     window.prepareReply = function(id, user, text) {
       replyTo = { id, user, text };
       document.getElementById('replyUserName').textContent = user;
       document.getElementById('replyText').textContent = text;
-      replyBar.classList.add('active'); msgInput.focus();
+      document.getElementById('replyBar').classList.add('active'); document.getElementById('msgInput').focus();
     };
-    document.getElementById('closeReplyBtn').onclick = () => { replyBar.classList.remove('active'); replyTo = null; };
 
-    msgInput.addEventListener('input', () => {
-      let typingPath = currentChatId === 'general' ? `typing/general` : `typing/${getChatRoomId(userName, currentChatId)}`;
-      const myTypingRef = ref(db, `${typingPath}/${userName}`);
-      if(msgInput.value.length > 0) {
-        set(myTypingRef, true);
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => set(myTypingRef, false), 2000);
-      } else set(myTypingRef, false);
-    });
+    // ====== ЗАПУСК ======
+    window.addEventListener('DOMContentLoaded', () => {
+      initProfile();
+      renderChannels();
+      renderFriends();
+      switchChat('general');
 
-    // Поиск
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-      const query = e.target.value.toLowerCase();
-      document.querySelectorAll('.msg-group').forEach(msg => {
-        const text = msg.querySelector('.msg-text')?.textContent.toLowerCase() || '';
-        msg.style.display = text.includes(query) ? 'flex' : 'none';
-      });
-    });
-
-    // ====== ОТПРАВКА ======
-    const attachBtn = document.getElementById('attachBtn');
-    const fileInput = document.getElementById('fileInput');
-    attachBtn.onclick = () => fileInput.click();
-    fileInput.onchange = (e) => {
-      const file = e.target.files[0];
-      if(!file) return;
-      if(file.size > 800000) return alert("Макс. 800КБ.");
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        let path = (currentChatId === 'general' || customChannels.includes(currentChatId)) ? `messages/${currentChatId}` : `messages/dms/${getChatRoomId(userName, currentChatId)}`;
-        push(ref(db, path), { user: userName, avatar: userAvatar, timestamp: Date.now(), replyTo, file: { name: file.name, type: file.type, data: ev.target.result } });
-        fileInput.value = ''; replyTo = null; replyBar.classList.remove('active');
+      // Обработка профиля
+      document.getElementById('openProfileBtn').onclick = () => {
+        document.getElementById('editNameInput').value = userName;
+        document.getElementById('profileModal').classList.add('active');
       };
-      reader.readAsDataURL(file);
-    };
-
-    function sendMessage() {
-      const text = msgInput.value.trim();
-      if (!text) return;
-      let path = (currentChatId === 'general' || customChannels.includes(currentChatId)) ? `messages/${currentChatId}` : `messages/dms/${getChatRoomId(userName, currentChatId)}`;
-      push(ref(db, path), { user: userName, text: text, avatar: userAvatar, timestamp: Date.now(), replyTo });
-      msgInput.value = ''; replyBar.classList.remove('active'); replyTo = null;
-      set(ref(db, `${currentChatId === 'general' ? 'typing/general' : 'typing/'+getChatRoomId(userName, currentChatId)}/${userName}`), false);
-      msgInput.focus();
-    }
-    document.getElementById('sendBtn').onclick = sendMessage;
-    msgInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
-    function escapeHtml(unsafe) { return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
-
-    // ====== ГОЛОСОВЫЕ ======
-    let mediaRecorder, audioChunks = [];
-    const voiceBtn = document.getElementById('voiceBtn');
-    voiceBtn.onclick = async () => {
-      if(mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop(); voiceBtn.classList.remove('recording');
-      } else {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          mediaRecorder = new MediaRecorder(stream); audioChunks = [];
-          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-          mediaRecorder.onstop = () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-              let path = (currentChatId === 'general' || customChannels.includes(currentChatId)) ? `messages/${currentChatId}` : `messages/dms/${getChatRoomId(userName, currentChatId)}`;
-              push(ref(db, path), { user: userName, avatar: userAvatar, timestamp: Date.now(), voice: ev.target.result });
-            };
-            reader.readAsDataURL(audioBlob); stream.getTracks().forEach(t => t.stop());
+      document.getElementById('closeProfileBtn').onclick = () => document.getElementById('profileModal').classList.remove('active');
+      document.getElementById('closeProfileBtn2').onclick = () => document.getElementById('profileModal').classList.remove('active');
+      
+      document.getElementById('avatarInput').onchange = (e) => {
+        const file = e.target.files[0];
+        if(file) {
+          const reader = new FileReader();
+          reader.onload = (ev) => { 
+            userAvatar = ev.target.result; 
+            document.getElementById('avatarPreview').innerHTML = `<img src="${userAvatar}">`; 
           };
-          mediaRecorder.start(); voiceBtn.classList.add('recording');
-        } catch(e) { alert("Нет доступа к микрофону"); }
-      }
-    };
-
-    // ====== ЗВОНОК (WebRTC) ======
-    const startCallBtn = document.getElementById('startCallBtn');
-    const callOverlay = document.getElementById('callOverlay');
-    const callStatus = document.getElementById('callStatus');
-    const localVideo = document.getElementById('localVideo');
-    const remoteVideo = document.getElementById('remoteVideo');
-    const incomingCallDiv = document.getElementById('incomingCall');
-    let localStream = null, room = null, isScreenSharing = false;
-
-    onValue(ref(db, 'calls/' + userName), (snap) => {
-      const data = snap.val();
-      if(data && data.status === 'ringing' && data.from !== userName) {
-        document.getElementById('incomingCallName').textContent = data.from;
-        incomingCallDiv.classList.add('active');
-        ringSound.play().catch(e=>{});
-        if(document.hidden) {
-          showToast(data.from, 'Звонит вам...', null, true);
-          flashTitle('📞 Входящий звонок!');
+          reader.readAsDataURL(file);
         }
-        currentCallTarget = data.from;
-      } else {
-        incomingCallDiv.classList.remove('active');
-        ringSound.pause();
+      };
+
+      document.getElementById('saveProfileBtn').onclick = () => {
+        const newName = document.getElementById('editNameInput').value.trim();
+        if(newName) {
+          userName = newName; 
+          localStorage.setItem('buldusName', userName); 
+          localStorage.setItem('buldusAvatar', userAvatar);
+          set(ref(db, 'users/' + userName), { avatar: userAvatar });
+          initProfile(); 
+          document.getElementById('profileModal').classList.remove('active');
+        }
+      };
+
+      // Добавление друга
+      document.getElementById('addFriendBtn').onclick = () => {
+        const friendName = prompt("Введите никнейм друга:");
+        if(friendName && !friends.includes(friendName)) {
+          friends.push(friendName); 
+          localStorage.setItem('buldusFriends', JSON.stringify(friends)); 
+          renderFriends();
+        }
+      };
+
+      // Чужой профиль
+      const userModal = document.getElementById('userModal');
+      let selectedUserId = null;
+
+      window.openUserProfile = async function(name) {
+        if (name === userName) return;
+        selectedUserId = name;
+        document.getElementById('userModalName').textContent = name;
+        const userAvatarDiv = document.getElementById('userModalAvatar');
+        userAvatarDiv.textContent = name.charAt(0).toUpperCase();
+        try {
+          const snapshot = await get(ref(db, 'users/' + name));
+          if (snapshot.exists() && snapshot.val().avatar) userAvatarDiv.innerHTML = `<img src="${snapshot.val().avatar}">`;
+        } catch(e) {}
+        userModal.classList.add('active');
+      };
+      document.getElementById('closeUserModalBtn').onclick = () => userModal.classList.remove('active');
+      document.getElementById('userModalMsgBtn').onclick = () => {
+        userModal.classList.remove('active');
+        if(!friends.includes(selectedUserId)) {
+          friends.push(selectedUserId); localStorage.setItem('buldusFriends', JSON.stringify(friends)); renderFriends();
+        }
+        switchChat(selectedUserId);
+      };
+      document.getElementById('userModalAddBtn').onclick = () => {
+        if(!friends.includes(selectedUserId)) {
+          friends.push(selectedUserId); localStorage.setItem('buldusFriends', JSON.stringify(friends)); renderFriends();
+          alert(selectedUserId + " добавлен в друзья!");
+        } else alert("Он уже у тебя в друзьях.");
+        userModal.classList.remove('active');
+      };
+      document.getElementById('userModalCallBtn').onclick = () => {
+        userModal.classList.remove('active');
+        startCall(selectedUserId);
+      };
+
+      // Отправка
+      const sendBtn = document.getElementById('sendBtn');
+      const attachBtn = document.getElementById('attachBtn');
+      const fileInput = document.getElementById('fileInput');
+      const msgInput = document.getElementById('msgInput');
+
+      function sendMessage() {
+        const text = msgInput.value.trim();
+        if (!text) return;
+        let path = (currentChatId === 'general' || customChannels.includes(currentChatId)) ? `messages/${currentChatId}` : `messages/dms/${getChatRoomId(userName, currentChatId)}`;
+        push(ref(db, path), { user: userName, text: text, avatar: userAvatar, timestamp: Date.now(), replyTo });
+        msgInput.value = ''; 
+        document.getElementById('replyBar').classList.remove('active'); 
+        replyTo = null;
+      }
+
+      sendBtn.onclick = sendMessage;
+      msgInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+      msgInput.addEventListener('input', () => {
+        let typingPath = currentChatId === 'general' ? `typing/general` : `typing/${getChatRoomId(userName, currentChatId)}`;
+        const myTypingRef = ref(db, `${typingPath}/${userName}`);
+        if(msgInput.value.length > 0) {
+          set(myTypingRef, true);
+          clearTimeout(typingTimeout);
+          typingTimeout = setTimeout(() => set(myTypingRef, false), 2000);
+        } else set(myTypingRef, false);
+      });
+
+      attachBtn.onclick = () => fileInput.click();
+      fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        if(file.size > 800000) return alert("Макс. 800КБ.");
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          let path = (currentChatId === 'general' || customChannels.includes(currentChatId)) ? `messages/${currentChatId}` : `messages/dms/${getChatRoomId(userName, currentChatId)}`;
+          push(ref(db, path), { user: userName, avatar: userAvatar, timestamp: Date.now(), replyTo, file: { name: file.name, type: file.type, data: ev.target.result } });
+          fileInput.value = ''; replyTo = null; document.getElementById('replyBar').classList.remove('active');
+        };
+        reader.readAsDataURL(file);
+      };
+
+      // Звонок
+      const callOverlay = document.getElementById('callOverlay');
+      const callStatus = document.getElementById('callStatus');
+      const localVideo = document.getElementById('localVideo');
+      const remoteVideo = document.getElementById('remoteVideo');
+      const incomingCallDiv = document.getElementById('incomingCall');
+      let localStream = null;
+      let peerConnection = null;
+      let isScreenSharing = false;
+
+      // ICE сервера для лучшего соединения
+      const iceServers = {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      };
+
+      // Слушаем входящие звонки
+      onValue(ref(db, 'calls/' + userName), (snap) => {
+        const data = snap.val();
+        if(data && data.status === 'ringing' && data.from !== userName) {
+          document.getElementById('incomingCallName').textContent = data.from;
+          incomingCallDiv.classList.add('active');
+          ringSound.play().catch(e=>{});
+          if(document.hidden) {
+            showToast(data.from, 'Звонит вам...', null, true);
+            flashTitle('📞 Входящий звонок!');
+          }
+          currentCallTarget = data.from;
+        } else {
+          incomingCallDiv.classList.remove('active');
+          ringSound.pause();
+        }
+      });
+
+      document.getElementById('declineCallBtn').onclick = () => {
+        incomingCallDiv.classList.remove('active'); ringSound.pause();
+        set(ref(db, 'calls/' + userName), null);
+      };
+
+      document.getElementById('acceptCallBtn').onclick = () => {
+        incomingCallDiv.classList.remove('active'); ringSound.pause();
+        startCall(currentCallTarget, true);
+      };
+
+      document.getElementById('startCallBtn').onclick = () => {
+        if(currentCallTarget) { 
+          set(ref(db, 'calls/' + currentCallTarget), { from: userName, status: 'ringing' }); 
+          startCall(currentCallTarget, false); 
+        } else {
+          startCall(null, false); 
+        }
+      };
+
+      async function startCall(targetUser, isReceiving) {
+        callOverlay.classList.add('active'); callStatus.textContent = "Запрос камеры...";
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          localVideo.srcObject = localStream; localVideo.classList.add('active');
+          
+          // Создаем WebRTC соединение
+          peerConnection = new RTCPeerConnection(iceServers);
+          
+          // Добавляем локальные треки
+          localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+          });
+
+          // Получаем удаленный поток
+          peerConnection.ontrack = (event) => {
+            remoteVideo.srcObject = event.streams[0];
+            remoteVideo.classList.add('active');
+            callStatus.textContent = "В сети";
+          };
+
+          // ICE кандидаты
+          peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+              const roomId = targetUser ? `buldus-dm-${getChatRoomId(userName, targetUser)}` : `buldus-channel-${currentChatId}`;
+              push(ref(db, `webrtc/${roomId}/candidates/${userName}`), event.candidate.toJSON());
+            }
+          };
+
+          const roomId = targetUser ? `buldus-dm-${getChatRoomId(userName, targetUser)}` : `buldus-channel-${currentChatId}`;
+
+          if(!isReceiving) {
+            // Мы звоним: создаем Offer
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            set(ref(db, `webrtc/${roomId}/offer`), { 
+              type: offer.type, 
+              sdp: offer.sdp,
+              from: userName
+            });
+            callStatus.textContent = "Ожидание ответа...";
+          } else {
+            // Нам звонят: берем Offer и создаем Answer
+            const offerSnap = await get(ref(db, `webrtc/${roomId}/offer`));
+            if (offerSnap.exists()) {
+              const offer = offerSnap.val();
+              await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+              const answer = await peerConnection.createAnswer();
+              await peerConnection.setLocalDescription(answer);
+              set(ref(db, `webrtc/${roomId}/answer`), { 
+                type: answer.type, 
+                sdp: answer.sdp 
+              });
+              callStatus.textContent = "Подключение...";
+            }
+          }
+
+          // Слушаем ответ (если мы звоним)
+          if(!isReceiving) {
+            onValue(ref(db, `webrtc/${roomId}/answer`), async (snap) => {
+              const data = snap.val();
+              if(data && !peerConnection.currentRemoteDescription) {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data));
+                callStatus.textContent = "Подключено";
+              }
+            });
+          }
+
+          // Слушаем ICE кандидаты собеседника
+          onValue(ref(db, `webrtc/${roomId}/candidates`), (snap) => {
+            const candidates = snap.val();
+            if(candidates) {
+              Object.values(candidates).forEach(async (candidateData) => {
+                if(candidateData) {
+                  Object.values(candidateData).forEach(async (c) => {
+                    try {
+                      await peerConnection.addIceCandidate(new RTCIceCandidate(c));
+                    } catch(e) {}
+                  });
+                }
+              });
+            }
+          });
+
+          if(targetUser) set(ref(db, 'calls/' + targetUser), null);
+
+        } catch (e) { 
+          callStatus.textContent = "Ошибка: " + e.message;
+          console.error(e);
+        }
+      }
+
+      document.getElementById('hangupBtn').onclick = () => {
+        if(localStream) localStream.getTracks().forEach(t => t.stop());
+        if(peerConnection) peerConnection.close();
+        if(currentCallTarget) set(ref(db, 'calls/' + currentCallTarget), null);
+        set(ref(db, 'calls/' + userName), null);
+        callOverlay.classList.remove('active'); window.location.reload();
+      };
+
+      document.getElementById('toggleMicBtn').onclick = () => { 
+        if(!localStream) return; 
+        const t = localStream.getAudioTracks()[0]; 
+        if(t) { t.enabled = !t.enabled; document.getElementById('toggleMicBtn').classList.toggle('muted', !t.enabled); } 
+      };
+      document.getElementById('toggleCamBtn').onclick = () => { 
+        if(!localStream) return; 
+        const t = localStream.getVideoTracks()[0]; 
+        if(t) { t.enabled = !t.enabled; document.getElementById('toggleCamBtn').classList.toggle('muted', !t.enabled); localVideo.style.opacity = t.enabled ? "1" : "0"; } 
+      };
+      
+      const screenShareBtn = document.getElementById('screenShareBtn');
+      screenShareBtn.onclick = async () => {
+        if(!localStream || !peerConnection) return;
+        if(!isScreenSharing) {
+          try {
+            const ss = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            const screenTrack = ss.getVideoTracks()[0];
+            const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (sender) await sender.replaceTrack(screenTrack);
+            localVideo.srcObject = ss; localVideo.classList.add('active'); localVideo.style.opacity = "1";
+            screenTrack.onended = () => stopScreenShare();
+            screenShareBtn.classList.add('screen-sharing'); isScreenSharing = true;
+          } catch(e) {}
+        } else stopScreenShare();
+      };
+      async function stopScreenShare() {
+        isScreenSharing = false; screenShareBtn.classList.remove('screen-sharing');
+        const cs = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const camTrack = cs.getVideoTracks()[0];
+        const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (sender) await sender.replaceTrack(camTrack);
+        localVideo.srcObject = cs;
       }
     });
-
-    document.getElementById('declineCallBtn').onclick = () => {
-      incomingCallDiv.classList.remove('active'); ringSound.pause();
-      set(ref(db, 'calls/' + userName), null);
-    };
-
-    document.getElementById('acceptCallBtn').onclick = () => {
-      incomingCallDiv.classList.remove('active'); ringSound.pause();
-      startCall(currentCallTarget, true);
-    };
-
-    startCallBtn.onclick = () => {
-      if(currentCallTarget) { set(ref(db, 'calls/' + currentCallTarget), { from: userName, status: 'ringing' }); startCall(currentCallTarget, false); }
-      else startCall(null, false);
-    };
-
-    async function startCall(targetUser, isReceiving) {
-      callOverlay.classList.add('active'); callStatus.textContent = "Запрос камеры...";
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localVideo.srcObject = localStream; localVideo.classList.add('active');
-        let roomId = targetUser ? `buldus-dm-${getChatRoomId(userName, targetUser)}` : `buldus-channel-${currentChatId}`;
-        // ИСПРАВЛЕНО: используем firebaseApp: app
-        room = joinRoom({ firebaseApp: app }, roomId);
-        callStatus.textContent = isReceiving ? "Подключение..." : "Ожидание ответа...";
-        room.addStream(localStream);
-        room.onPeerStream((peerId, remoteStream) => { remoteVideo.srcObject = remoteStream; remoteVideo.classList.add('active'); callStatus.textContent = `В сети`; });
-        room.onPeerJoin(() => callStatus.textContent = `Подключено`);
-        room.onPeerLeave(() => { callStatus.textContent = `Отключился`; remoteVideo.classList.remove('active'); remoteVideo.srcObject = null; });
-        if(targetUser) set(ref(db, 'calls/' + targetUser), null);
-      } catch (e) { callStatus.textContent = "Ошибка: " + e.message; }
-    }
-
-    document.getElementById('hangupBtn').onclick = () => {
-      if(localStream) localStream.getTracks().forEach(t => t.stop());
-      if(currentCallTarget) set(ref(db, 'calls/' + currentCallTarget), null);
-      set(ref(db, 'calls/' + userName), null);
-      callOverlay.classList.remove('active'); window.location.reload();
-    };
-
-    document.getElementById('toggleMicBtn').onclick = () => { if(!localStream) return; const t = localStream.getAudioTracks()[0]; if(t) { t.enabled = !t.enabled; document.getElementById('toggleMicBtn').classList.toggle('muted', !t.enabled); } };
-    document.getElementById('toggleCamBtn').onclick = () => { if(!localStream) return; const t = localStream.getVideoTracks()[0]; if(t) { t.enabled = !t.enabled; document.getElementById('toggleCamBtn').classList.toggle('muted', !t.enabled); localVideo.style.opacity = t.enabled ? "1" : "0"; } };
-    
-    const screenShareBtn = document.getElementById('screenShareBtn');
-    screenShareBtn.onclick = async () => {
-      if(!localStream || !room) return;
-      if(!isScreenSharing) {
-        try {
-          const ss = await navigator.mediaDevices.getDisplayMedia({ video: true });
-          room.replaceStream(ss); localVideo.srcObject = ss; localVideo.classList.add('active'); localVideo.style.opacity = "1";
-          ss.getVideoTracks()[0].onended = () => stopScreenShare();
-          screenShareBtn.classList.add('screen-sharing'); isScreenSharing = true;
-        } catch(e) {}
-      } else stopScreenShare();
-    };
-    async function stopScreenShare() {
-      isScreenSharing = false; screenShareBtn.classList.remove('screen-sharing');
-      const cs = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localStream = new MediaStream([...cs.getVideoTracks(), localStream.getAudioTracks()[0]]);
-      room.replaceStream(localStream); localVideo.srcObject = localStream;
-    }
   </script>
 </body>
 </html>
