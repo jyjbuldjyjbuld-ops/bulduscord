@@ -18,23 +18,25 @@
     /* Сайдбар */
     .sidebar { width: 280px; background: var(--bg-panel); display: flex; flex-direction: column; border-right: 1px solid var(--border); }
     .profile-card { padding: 15px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); background: linear-gradient(135deg, rgba(88, 101, 242, 0.1) 0%, transparent 100%); cursor: pointer; transition: 0.2s; }
-    .profile-card:hover { background: rgba(255,255,255,0.05); }
-    .avatar-main { width: 42px; height: 42px; border-radius: 50%; background: var(--accent); display: flex; justify-content: center; align-items: center; font-weight: 700; font-size: 17px; box-shadow: 0 0 12px var(--accent-glow); position: relative; overflow: hidden; }
+    .profile-card:hover { background: rgba(255,255,255,0.05); transform: scale(1.02); }
+    .avatar-main { width: 42px; height: 42px; border-radius: 50%; background: var(--accent); display: flex; justify-content: center; align-items: center; font-weight: 700; font-size: 17px; box-shadow: 0 0 12px var(--accent-glow); position: relative; overflow: hidden; transition: 0.3s; }
+    .profile-card:hover .avatar-main { box-shadow: 0 0 20px var(--accent); }
     .avatar-main img { width: 100%; height: 100%; object-fit: cover; }
-    .online-dot { position: absolute; bottom: 0; right: 0; width: 11px; height: 11px; background: var(--green-online); border-radius: 50%; border: 2px solid var(--bg-panel); }
+    .online-dot { position: absolute; bottom: 0; right: 0; width: 11px; height: 11px; background: var(--green-online); border-radius: 50%; border: 2px solid var(--bg-panel); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(35, 165, 90, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(35, 165, 90, 0); } 100% { box-shadow: 0 0 0 0 rgba(35, 165, 90, 0); } }
     .profile-info h4 { font-size: 15px; font-weight: 600; }
     .profile-info span { font-size: 12px; color: var(--text-muted); }
     
     .sidebar-content { flex: 1; padding: 15px; overflow-y: auto; }
     .sidebar-title { font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 1px; margin-bottom: 10px; margin-top: 10px; }
     .channel-item, .friend-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; cursor: pointer; transition: 0.2s; color: var(--text-muted); font-weight: 500; font-size: 14px; }
-    .channel-item:hover, .friend-item:hover { background: rgba(255,255,255,0.05); color: var(--text-main); }
-    .channel-item.active, .friend-item.active { background: var(--bg-input); color: var(--text-main); }
+    .channel-item:hover, .friend-item:hover { background: rgba(255,255,255,0.05); color: var(--text-main); transform: translateX(5px); }
+    .channel-item.active, .friend-item.active { background: var(--bg-input); color: var(--text-main); border-left: 3px solid var(--accent); }
     .channel-icon { font-size: 18px; font-weight: 400; }
     .friend-avatar { width: 28px; height: 28px; border-radius: 50%; background: #2b2e3d; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; color: white; overflow: hidden; }
     .friend-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .add-friend-btn { background: var(--bg-input); border: none; color: var(--text-muted); width: 100%; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 5px; transition: 0.2s; }
-    .add-friend-btn:hover { background: var(--accent); color: white; }
+    .add-friend-btn:hover { background: var(--accent); color: white; box-shadow: 0 0 10px var(--accent-glow); }
 
     /* Чат */
     .main-chat { flex: 1; display: flex; flex-direction: column; background: var(--bg-chat); position: relative; }
@@ -45,37 +47,46 @@
     #messages::-webkit-scrollbar { width: 8px; }
     #messages::-webkit-scrollbar-thumb { background: var(--bg-input); border-radius: 4px; }
 
-    .msg-group { display: flex; gap: 14px; animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); max-width: 85%; }
+    .msg-group { display: flex; gap: 14px; animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); max-width: 85%; position: relative; }
     @keyframes slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-    .msg-avatar { width: 38px; height: 38px; border-radius: 50%; background: #2b2e3d; flex-shrink: 0; display: flex; justify-content: center; align-items: center; font-weight: 600; font-size: 14px; color: #fff; margin-top: 2px; overflow: hidden; cursor: pointer; }
+    .msg-avatar { width: 38px; height: 38px; border-radius: 50%; background: #2b2e3d; flex-shrink: 0; display: flex; justify-content: center; align-items: center; font-weight: 600; font-size: 14px; color: #fff; margin-top: 2px; overflow: hidden; cursor: pointer; transition: 0.2s; }
+    .msg-avatar:hover { transform: scale(1.1); box-shadow: 0 0 10px rgba(255,255,255,0.2); }
     .msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .msg-content { display: flex; flex-direction: column; max-width: 100%; }
     .msg-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
-    .msg-user { font-weight: 600; font-size: 14px; color: #fff; cursor: pointer; }
+    .msg-user { font-weight: 600; font-size: 14px; color: #fff; cursor: pointer; transition: 0.2s; }
+    .msg-user:hover { color: var(--accent); text-decoration: underline; }
     .msg-time { font-size: 11px; color: var(--text-muted); }
-    .msg-text { font-size: 15px; line-height: 1.45; color: #c9cbd8; word-break: break-word; }
+    .msg-text { font-size: 15px; line-height: 1.45; color: #c9cbd8; word-break: break-word; padding: 10px 14px; border-radius: 12px; background: transparent; transition: 0.2s; }
     
+    /* Удаление сообщения (появляется при наведении) */
+    .delete-msg-btn { display: none; position: absolute; right: -30px; top: 50%; transform: translateY(-50%); background: var(--red-offline); color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; font-size: 12px; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    .msg-group:hover .delete-msg-btn { display: flex; animation: fadeIn 0.2s; }
+    .msg-group.own .delete-msg-btn { right: auto; left: -30px; }
+
     /* Вложения */
-    .attachment-img { max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 5px; cursor: pointer; transition: 0.2s; border: 1px solid var(--border); }
-    .attachment-img:hover { transform: scale(1.02); box-shadow: 0 0 15px rgba(255,255,255,0.1); }
+    .attachment-img { max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 5px; cursor: pointer; transition: 0.3s; border: 1px solid var(--border); }
+    .attachment-img:hover { transform: scale(1.03); box-shadow: 0 0 20px rgba(255,255,255,0.15); }
     .attachment-file { display: inline-flex; align-items: center; gap: 8px; background: #1f212a; padding: 10px 15px; border-radius: 8px; margin-top: 5px; color: var(--text-main); text-decoration: none; border: 1px solid var(--border); transition: 0.2s; }
-    .attachment-file:hover { border-color: var(--accent); background: #2a2c3d; }
+    .attachment-file:hover { border-color: var(--accent); background: #2a2c3d; box-shadow: 0 0 15px var(--accent-glow); }
 
     .msg-group.own { align-self: flex-end; flex-direction: row-reverse; }
     .msg-group.own .msg-content { align-items: flex-end; }
     .msg-group.own .msg-user { color: var(--accent); }
-    .msg-group.own .msg-text { background: var(--msg-own-bg); padding: 10px 14px; border-radius: 12px 0 12px 12px; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .msg-group.own .msg-text { background: var(--msg-own-bg); color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .msg-text a { color: var(--accent); text-decoration: none; }
+    .msg-text a:hover { text-decoration: underline; }
 
     /* Ввод */
     .chat-input-area { padding: 0 25px 20px 25px; }
     .input-wrapper { background: var(--bg-input); border-radius: 10px; display: flex; align-items: center; padding: 5px 15px; border: 1px solid transparent; transition: 0.3s; gap: 10px; }
-    .input-wrapper:focus-within { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+    .input-wrapper:focus-within { border-color: var(--accent); box-shadow: 0 0 15px var(--accent-glow); }
     input[type="text"] { flex: 1; background: transparent; border: none; color: var(--text-main); font-size: 15px; padding: 14px 0; outline: none; }
     .attach-btn { background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; transition: 0.2s; }
-    .attach-btn:hover { color: var(--accent); }
+    .attach-btn:hover { color: var(--accent); transform: rotate(15deg); }
     .send-btn { background: var(--accent); color: white; border: none; border-radius: 8px; width: 38px; height: 38px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; font-size: 16px; }
-    .send-btn:hover { background: var(--accent-hover); transform: scale(1.05); }
+    .send-btn:hover { background: var(--accent-hover); transform: scale(1.1); box-shadow: 0 0 10px var(--accent-glow); }
+    .send-btn:active { transform: scale(0.95); }
 
     /* Кнопка звонка */
     .call-btn { background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); padding: 8px 15px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
@@ -106,24 +117,28 @@
     /* Модалки */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
     .modal-overlay.active { display: flex; }
-    .modal { background: var(--bg-panel); padding: 25px; border-radius: 12px; width: 350px; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.5); position: relative;}
+    .modal { background: var(--bg-panel); padding: 25px; border-radius: 12px; width: 350px; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.5); position: relative; animation: slideUp 0.3s ease-out; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    
     .modal h3 { margin-bottom: 20px; font-size: 18px; }
     .modal label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; margin-top: 15px; text-transform: uppercase; font-weight: 600; }
     .modal input[type="text"] { width: 100%; padding: 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: white; margin-bottom: 10px; }
-    .modal input[type="text"]:focus { outline: none; border-color: var(--accent); }
+    .modal input[type="text"]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
     
     .avatar-upload { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 15px; }
     .avatar-preview { width: 80px; height: 80px; border-radius: 50%; background: var(--bg-input); display: flex; justify-content: center; align-items: center; font-size: 30px; overflow: hidden; border: 2px solid var(--border); }
     .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
-    .upload-btn { background: var(--bg-input); border: 1px solid var(--border); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
-    .upload-btn:hover { border-color: var(--accent); }
+    .upload-btn { background: var(--bg-input); border: 1px solid var(--border); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: 0.2s; }
+    .upload-btn:hover { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
 
     .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
     .modal-btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; transition: 0.2s; }
     .modal-btn.cancel { background: transparent; color: var(--text-main); }
+    .modal-btn.cancel:hover { background: rgba(255,255,255,0.1); }
     .modal-btn.save { background: var(--accent); color: white; }
-    .modal-btn.save:hover { background: var(--accent-hover); }
-    .close-modal { position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+    .modal-btn.save:hover { background: var(--accent-hover); box-shadow: 0 0 15px var(--accent-glow); }
+    .close-modal { position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; transition: 0.2s; }
+    .close-modal:hover { color: var(--red-offline); transform: rotate(90deg); }
 
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   </style>
@@ -180,7 +195,6 @@
   <div class="call-overlay" id="callOverlay">
     <div class="call-container">
       <h2 id="callStatus" class="call-status-text">Соединение...</h2>
-      
       <div class="video-grid">
         <div class="video-box remote">
           <video id="remoteVideo" autoplay playsinline></video>
@@ -191,7 +205,6 @@
           <div class="label">Вы</div>
         </div>
       </div>
-
       <div class="call-controls">
         <button id="toggleMicBtn" class="ctrl-btn" title="Микрофон">🎤</button>
         <button id="toggleCamBtn" class="ctrl-btn" title="Камера">📷</button>
@@ -234,9 +247,10 @@
   </div>
 
   <script type="module">
+    // ИСПРАВЛЕННЫЙ ИМПОРТ TRYSTERO
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded, set, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-    import * as trystero from "https://cdn.jsdelivr.net/npm/trystero@0.21.0/+esm";
+    import { getDatabase, ref, push, onChildAdded, set, get, remove, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { joinRoom } from "https://cdn.jsdelivr.net/npm/trystero@0.21.0/firebase/+esm";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDl_n46O3YC40IxWeU2iP3ucWi3D1xW0-Q",
@@ -250,6 +264,9 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
+
+    // Звук нового сообщения (базовый)
+    const notifSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
 
     // ====== ПРОФИЛЬ ======
     let userName = localStorage.getItem('buldusName') || "User_" + Math.floor(Math.random() * 1000);
@@ -299,7 +316,7 @@
       if(newName) {
         userName = newName; userAvatar = tempAvatar;
         localStorage.setItem('buldusName', userName); localStorage.setItem('buldusAvatar', userAvatar);
-        set(ref(db, 'users/' + userName), { avatar: userAvatar });
+        set(ref(db, 'users/' + userName), { avatar: userAvatar }); // Сохранение аватарки в Firebase
         updateUI(); profileModal.classList.remove('active');
       }
     };
@@ -394,17 +411,15 @@
         const isOwn = msg.user === userName;
         const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
+        // Звук уведомления для чужих сообщений
+        if(!isOwn && msg.timestamp > Date.now() - 3000) notifSound.play().catch(e=>{});
+
         let contentHtml = '';
-        if(msg.text) {
-           contentHtml += `<div class="msg-text">${escapeHtml(msg.text).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>')}</div>`;
-        }
+        if(msg.text) contentHtml += `<div class="msg-text">${escapeHtml(msg.text).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>')}</div>`;
         
         if(msg.file) {
-          if(msg.file.type.startsWith('image/')) {
-            contentHtml += `<img src="${msg.file.data}" class="attachment-img" onclick="window.open(this.src)">`;
-          } else {
-            contentHtml += `<a href="${msg.file.data}" download="${msg.file.name}" class="attachment-file">📄 ${msg.file.name}</a>`;
-          }
+          if(msg.file.type.startsWith('image/')) contentHtml += `<img src="${msg.file.data}" class="attachment-img" onclick="window.open(this.src)">`;
+          else contentHtml += `<a href="${msg.file.data}" download="${msg.file.name}" class="attachment-file">📄 ${msg.file.name}</a>`;
         }
 
         const wrapper = document.createElement('div');
@@ -420,12 +435,22 @@
             </div>
             ${contentHtml}
           </div>
+          ${isOwn ? `<button class="delete-msg-btn" onclick="deleteMsg('${path}/${snapshot.key}')">✕</button>` : ''}
         `;
         messagesDiv.appendChild(wrapper);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
       });
     }
     switchChat('general');
+
+    // Удаление своих сообщений
+    window.deleteMsg = function(fullPath) {
+      if(confirm("Удалить это сообщение?")) {
+        remove(ref(db, fullPath));
+        // Перезагрузка чата для обновления
+        switchChat(currentChatId);
+      }
+    };
 
     // ====== ОТПРАВКА ФАЙЛОВ ======
     const attachBtn = document.getElementById('attachBtn');
@@ -461,7 +486,7 @@
     msgInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
     function escapeHtml(unsafe) { return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
-    // ====== СТАБИЛЬНЫЙ ЗВОНОК ======
+    // ====== СТАБИЛЬНЫЙ ЗВОНОК (ИСПРАВЛЕННЫЙ) ======
     const startCallBtn = document.getElementById('startCallBtn');
     const callOverlay = document.getElementById('callOverlay');
     const callStatus = document.getElementById('callStatus');
@@ -471,8 +496,6 @@
     let localStream = null;
     let room = null;
     let isScreenSharing = false;
-
-    trystero.init({ dbUrl: firebaseConfig.databaseURL });
 
     startCallBtn.onclick = async () => {
       callOverlay.classList.add('active');
@@ -484,7 +507,9 @@
         localVideo.classList.add('active');
         
         let roomId = currentChatId === 'general' ? 'buldus-general-voice' : `buldus-dm-${getChatRoomId(userName, currentChatId)}`;
-        room = trystero.joinRoom(roomId);
+        
+        // ИСПРАВЛЕНО: используем joinRoom с передачей конфига Firebase
+        room = joinRoom({ appId: firebaseConfig.databaseURL }, roomId);
         
         callStatus.textContent = "Ожидание собеседника...";
         room.addStream(localStream);
@@ -506,7 +531,6 @@
     const hangupBtn = document.getElementById('hangupBtn');
     hangupBtn.onclick = () => {
       if(localStream) localStream.getTracks().forEach(t => t.stop());
-      if(room) room.leave();
       callOverlay.classList.remove('active');
       localVideo.srcObject = null; remoteVideo.srcObject = null;
       localVideo.classList.remove('active'); remoteVideo.classList.remove('active');
