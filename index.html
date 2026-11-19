@@ -775,7 +775,8 @@
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localVideo.srcObject = localStream; localVideo.classList.add('active');
         let roomId = targetUser ? `buldus-dm-${getChatRoomId(userName, targetUser)}` : `buldus-channel-${currentChatId}`;
-        room = joinRoom({ appId: firebaseConfig.databaseURL }, roomId);
+        // ИСПОЛЬЗУЕМ УЖЕ СОЗДАННЫЙ FIREBASE APP
+        room = joinRoom({ firebaseApp: app }, roomId);
         callStatus.textContent = isReceiving ? "Подключение..." : "Ожидание ответа...";
         room.addStream(localStream);
         room.onPeerStream((peerId, remoteStream) => { remoteVideo.srcObject = remoteStream; remoteVideo.classList.add('active'); callStatus.textContent = `В сети`; });
