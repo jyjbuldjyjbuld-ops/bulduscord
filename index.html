@@ -10,15 +10,29 @@
       --bg-dark: #0b0c10; --bg-panel: #15171e; --bg-chat: #1c1e26; --bg-input: #232530;
       --text-main: #e3e5ed; --text-muted: #8a8d9b; --accent: #5865f2; --accent-hover: #4752c4;
       --accent-glow: rgba(88, 101, 242, 0.4); --msg-own-bg: #3b3f54; --green-online: #23a55a;
-      --red-offline: #da373c; --yellow-warn: #f1c40f; --border: #2a2c3a;
+      --red-offline: #da373c; --border: #2a2c3a;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
     body { background: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; overflow: hidden; }
 
+    /* Кастомный скроллбар */
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: var(--bg-dark); }
     ::-webkit-scrollbar-thumb { background: var(--bg-input); border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+    /* Уведомления (Toasts) */
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; }
+    .toast { background: var(--bg-panel); border: 1px solid var(--border); border-left: 5px solid var(--accent); padding: 15px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: flex; align-items: center; gap: 12px; animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; min-width: 250px; max-width: 350px; transition: 0.2s; }
+    .toast:hover { transform: translateX(-5px); box-shadow: 0 10px 40px rgba(0,0,0,0.8), 0 0 15px var(--accent-glow); }
+    .toast.call { border-left-color: var(--green-online); }
+    .toast-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--bg-input); display: flex; justify-content: center; align-items: center; font-weight: 700; overflow: hidden; flex-shrink: 0; }
+    .toast-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .toast-content { display: flex; flex-direction: column; overflow: hidden; }
+    .toast-content h4 { font-size: 14px; color: var(--accent); margin-bottom: 2px; }
+    .toast-content p { font-size: 13px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .toast.call .toast-content h4 { color: var(--green-online); }
+    @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
     /* Сайдбар */
     .sidebar { width: 280px; background: var(--bg-panel); display: flex; flex-direction: column; border-right: 1px solid var(--border); z-index: 10; }
@@ -38,7 +52,10 @@
     .channel-item:hover, .friend-item:hover { background: rgba(255,255,255,0.05); color: var(--text-main); transform: translateX(3px); }
     .channel-item.active, .friend-item.active { background: var(--bg-input); color: var(--text-main); border-left: 3px solid var(--accent); }
     .channel-icon { font-size: 18px; font-weight: 400; }
-    .friend-avatar { width: 28px; height: 28px; border-radius: 50%; background: #2b2e3d; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; color: white; overflow: hidden; }
+    .friend-avatar { width: 28px; height: 28px; border-radius: 50%; background: #2b2e3d; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; color: white; overflow: hidden; position: relative; }
+    .online-badge { position: absolute; bottom: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--bg-panel); }
+    .online-badge.online { background: var(--green-online); }
+    .online-badge.offline { background: var(--text-muted); }
     .add-btn { background: transparent; border: 1px solid var(--border); color: var(--text-main); width: 100%; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 5px; transition: 0.2s; }
     .add-btn:hover { background: var(--accent); border-color: var(--accent); color: white; box-shadow: 0 0 10px var(--accent-glow); }
 
@@ -196,6 +213,9 @@
 </head>
 <body>
 
+  <!-- КОНТЕЙНЕР ДЛЯ УВЕДОМЛЕНИЙ -->
+  <div id="toast-container"></div>
+
   <!-- ЛЕВАЯ ПАНЕЛЬ -->
   <aside class="sidebar">
     <div class="profile-card" id="openProfileBtn">
@@ -343,6 +363,8 @@
     let userAvatar = localStorage.getItem('buldusAvatar') || null;
     let currentChatId = 'general';
     let currentCallTarget = null; // Кому звоним (для ЛС)
+    let originalTitle = document.title;
+    let titleInterval = null;
 
     const headerName = document.getElementById('headerName');
     const headerAvatar = document.getElementById('headerAvatar');
@@ -395,6 +417,39 @@
       }
     };
 
+    // ====== УВЕДОМЛЕНИЯ ======
+    function showToast(user, text, avatar, isCall = false) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${isCall ? 'call' : ''}`;
+      toast.innerHTML = `
+        <div class="toast-avatar">${avatar ? `<img src="${avatar}">` : user.charAt(0).toUpperCase()}</div>
+        <div class="toast-content">
+          <h4>${isCall ? '📞 Входящий звонок' : 'Новое сообщение'} от ${user}</h4>
+          <p>${isCall ? 'Нажмите, чтобы ответить' : text}</p>
+        </div>
+      `;
+      toast.onclick = () => {
+        if(isCall) document.getElementById('acceptCallBtn').click();
+        else switchChat(user);
+      };
+      container.appendChild(toast);
+      setTimeout(() => { toast.remove(); }, 5000);
+    }
+    
+    function flashTitle(msg) {
+      if(titleInterval) clearInterval(titleInterval);
+      let isOriginal = false;
+      titleInterval = setInterval(() => {
+        document.title = isOriginal ? msg : originalTitle;
+        isOriginal = !isOriginal;
+      }, 1000);
+    }
+    window.addEventListener('focus', () => {
+      if(titleInterval) clearInterval(titleInterval);
+      document.title = originalTitle;
+    });
+
     // ====== ЧУЖОЙ ПРОФИЛЬ ======
     const userModal = document.getElementById('userModal');
     let selectedUserId = null;
@@ -426,7 +481,6 @@
       } else alert("Он уже у тебя в друзьях.");
       userModal.classList.remove('active');
     };
-    // Кнопка позвонить из профиля
     document.getElementById('userModalCallBtn').onclick = () => {
       userModal.classList.remove('active');
       startCall(selectedUserId);
@@ -462,9 +516,16 @@
       friends.forEach(friend => {
         const el = document.createElement('div');
         el.className = `friend-item ${currentChatId === friend ? 'active' : ''}`;
-        el.innerHTML = `<div class="friend-avatar">${friend.charAt(0).toUpperCase()}</div> ${friend}`;
+        el.innerHTML = `<div class="friend-avatar">${friend.charAt(0).toUpperCase()}</div> ${friend} <div class="online-badge offline" id="status-${friend}"></div>`;
         el.onclick = () => switchChat(friend);
         list.appendChild(el);
+        
+        onValue(ref(db, 'status/' + friend), (snap) => {
+          const status = snap.val();
+          const badge = document.getElementById(`status-${friend}`);
+          if(status && status.online) badge.className = "online-badge online";
+          else badge.className = "online-badge offline";
+        });
       });
     }
     renderFriends();
@@ -492,11 +553,11 @@
       if(chatId === 'general' || customChannels.includes(chatId)) {
         currentChatName.textContent = chatId; currentChatIcon.textContent = '#';
         msgInput.placeholder = `Написать в #${chatId}...`;
-        currentCallTarget = null; // В канале звонок для всех
+        currentCallTarget = null;
       } else {
         currentChatName.textContent = chatId; currentChatIcon.textContent = '@';
         msgInput.placeholder = `ЛС для ${chatId}...`;
-        currentCallTarget = chatId; // В ЛС звоним только ему
+        currentCallTarget = chatId;
       }
       renderChannels(); renderFriends();
       
@@ -511,7 +572,14 @@
 
         const isOwn = msg.user === userName;
         const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        if(!isOwn && msg.timestamp > Date.now() - 3000) notifSound.play().catch(e=>{});
+        
+        if(!isOwn && msg.timestamp > Date.now() - 3000) {
+          notifSound.play().catch(e=>{});
+          if(document.hidden) {
+            showToast(msg.user, msg.text || 'Вложение', msg.avatar);
+            flashTitle('💬 Новое сообщение');
+          }
+        }
 
         let contentHtml = '';
         if(msg.text) contentHtml += `<div class="msg-text">${escapeHtml(msg.text).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>')}</div>`;
@@ -560,6 +628,9 @@
             <span onclick="toggleReaction('${path}', '${snapshot.key}', '❤️')">❤️</span>
             <span onclick="toggleReaction('${path}', '${snapshot.key}', '😂')">😂</span>
             <span onclick="toggleReaction('${path}', '${snapshot.key}', '🔥')">🔥</span>
+            <span onclick="toggleReaction('${path}', '${snapshot.key}', '👎')">👎</span>
+            <span onclick="toggleReaction('${path}', '${snapshot.key}', '💩')">💩</span>
+            <span onclick="toggleReaction('${path}', '${snapshot.key}', '🤬')">🤬</span>
           </div>
         `;
         messagesDiv.appendChild(wrapper);
@@ -676,13 +747,16 @@
     const incomingCallDiv = document.getElementById('incomingCall');
     let localStream = null, room = null, isScreenSharing = false;
 
-    // Слушаем входящие звонки (если мы в ЛС)
     onValue(ref(db, 'calls/' + userName), (snap) => {
       const data = snap.val();
       if(data && data.status === 'ringing' && data.from !== userName) {
         document.getElementById('incomingCallName').textContent = data.from;
         incomingCallDiv.classList.add('active');
         ringSound.play().catch(e=>{});
+        if(document.hidden) {
+          showToast(data.from, 'Звонит вам...', null, true);
+          flashTitle('📞 Входящий звонок!');
+        }
         currentCallTarget = data.from;
       } else {
         incomingCallDiv.classList.remove('active');
@@ -691,24 +765,18 @@
     });
 
     document.getElementById('declineCallBtn').onclick = () => {
-      incomingCallDiv.classList.remove('active');
-      ringSound.pause();
+      incomingCallDiv.classList.remove('active'); ringSound.pause();
       set(ref(db, 'calls/' + userName), null);
     };
 
     document.getElementById('acceptCallBtn').onclick = () => {
-      incomingCallDiv.classList.remove('active');
-      ringSound.pause();
-      startCall(currentCallTarget, true); // true = мы принимаем
+      incomingCallDiv.classList.remove('active'); ringSound.pause();
+      startCall(currentCallTarget, true);
     };
 
     startCallBtn.onclick = () => {
-      if(currentCallTarget) { // Если мы в ЛС, звоним конкретному человеку
-        set(ref(db, 'calls/' + currentCallTarget), { from: userName, status: 'ringing' });
-        startCall(currentCallTarget, false);
-      } else {
-        startCall(null, false); // Звонок в общий канал
-      }
+      if(currentCallTarget) { set(ref(db, 'calls/' + currentCallTarget), { from: userName, status: 'ringing' }); startCall(currentCallTarget, false); }
+      else startCall(null, false);
     };
 
     async function startCall(targetUser, isReceiving) {
@@ -716,33 +784,21 @@
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localVideo.srcObject = localStream; localVideo.classList.add('active');
-        
-        let roomId;
-        if(targetUser) {
-          roomId = `buldus-dm-${getChatRoomId(userName, targetUser)}`; // Личный звонок
-        } else {
-          roomId = `buldus-channel-${currentChatId}`; // Звонок в канале
-        }
-
+        let roomId = targetUser ? `buldus-dm-${getChatRoomId(userName, targetUser)}` : `buldus-channel-${currentChatId}`;
         room = joinRoom({ appId: firebaseConfig.databaseURL }, roomId);
         callStatus.textContent = isReceiving ? "Подключение..." : "Ожидание ответа...";
         room.addStream(localStream);
-        
         room.onPeerStream((peerId, remoteStream) => { remoteVideo.srcObject = remoteStream; remoteVideo.classList.add('active'); callStatus.textContent = `В сети`; });
         room.onPeerJoin(() => callStatus.textContent = `Подключено`);
         room.onPeerLeave(() => { callStatus.textContent = `Отключился`; remoteVideo.classList.remove('active'); remoteVideo.srcObject = null; });
-
-        // Убираем статус вызова
         if(targetUser) set(ref(db, 'calls/' + targetUser), null);
-        if(!isReceiving && targetUser) set(ref(db, 'calls/' + userName), null); // На всякий случай
-
       } catch (e) { callStatus.textContent = "Ошибка: " + e.message; }
     }
 
     document.getElementById('hangupBtn').onclick = () => {
       if(localStream) localStream.getTracks().forEach(t => t.stop());
       if(currentCallTarget) set(ref(db, 'calls/' + currentCallTarget), null);
-      set(ref(db, 'calls/' + userName), null); // Сбрасываем свой статус
+      set(ref(db, 'calls/' + userName), null);
       callOverlay.classList.remove('active'); window.location.reload();
     };
 
